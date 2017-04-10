@@ -1,4 +1,4 @@
-ss.env.DEBUG = "actions-on-google:*"
+process.env.DEBUG = "actions-on-google:*"
 
 let Assistant = require("actions-on-google").ApiAiAssistant
 let express = require("express")
