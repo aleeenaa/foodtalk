@@ -1,0 +1,26 @@
+{
+  "name": "foodtalk",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node app.js",
+    "monitor": "nodemon app.js",
+    "deploy": "gcloud app deploy"
+  },
+  "dependencies": {
+    "actions-on-google": "^1.0.0",
+    "body-parser": "^1.15.2",
+    "chalk": "^1.1.3",
+    "express": "^4.13.4",
+    "sprintf-js": "^1.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^3.19.0",
+    "eslint-config-google": "^0.7.1"
+  },
+  "description": "Fulfillment logic for a voice-enabled food ordering system",
+  "main": "app.js",
+  "author": "",
+  "license": "ISC"
+}
+
