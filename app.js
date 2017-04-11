@@ -25,6 +25,7 @@ const startJourneyAction = "journey.start",
 	browseByFoodSpotAction = "journey.browse.onlyFoodSpot",
 	confirmOrderAction = "journey.confirmOrder",
 	orderReadyAction = "journey.order.ready",
+	orderUnreadyAction = "journey.order.unready",
 	orderAgainAction = "journey.restart",
 	quitJourneyAction = "journey.end",
 
@@ -40,7 +41,7 @@ const startJourneyAction = "journey.start",
 
 	sellsUserFoodPrompts = ["These places sell %s: Shake & Grill, Umami & Roosters Piri Piri."],
 	whichRestaurantPrompt = ["Which one shall we order from?"],
-	foodSpotChosenPrompt = ["Great! Anything else from %s?"],
+	foodSpotChosenPrompt = ["Anything else from %s?"],
 	confirmOrderPrompts = ["Okay so that's %s from %s, right?", "Okay so that's %s to order from %s?"],
 	orderPlacedPrompt = ["Order placed.", "Awesome! Order placed.", "Order has been placed."],
 	startAgainPrompt = ["Want to order again?", "Another order?", "Shall I order from another restaurant?"]
@@ -52,7 +53,7 @@ const startJourneyAction = "journey.start",
 /**
  * A function which returns a prompt at random from a
  * given array of prompts. Prevents returning of the
- * same response as the last prompt.
+ * same prompt as the previous one.
  * @param  {[type]} assistant [description]
  * @param  {[type]} array     [description]
  * @return {[type]}           [description]
@@ -61,16 +62,14 @@ function getRandomPrompt(assistant, array) {
 	let prompt,
 		lastPrompt = assistant.data.lastPrompt;
 
-	if (lastPrompt) {
-		for (let index in array) {
-			prompt = array[index];
-			if (prompt !== lastPrompt) {
-				break;
-			}
+	for (let i in array) {
+		if (array[i] === lastPrompt) {
+			array.splice(i, 1)
+      		break;
 		}
-	} else {
-		prompt = array[Math.floor(Math.random() * (array.length))];
 	}
+
+  	prompt = array[Math.floor(Math.random() * (array.length))];
 	return prompt;
 }
 
@@ -205,7 +204,7 @@ app.post('/', function(request, response) {
 		// over to order
 		assistant.data.query.food = [];
 
-		return ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt).toString(), foodSpot))
+		return ask(assistant, printf(getRandomPrompt(assistant, acknowledgePrompt) + " " + getRandomPrompt(assistant, foodSpotChosenPrompt).toString(), foodSpot))
 	}
 
 	/**
@@ -289,6 +288,12 @@ app.post('/', function(request, response) {
 		// notify('query items added to order:' + JSON.stringify(order))
 	}
 
+	function orderMoreFromFoodSpot(assistant) {
+		assistant.setContext("chosen_foodspot-followup", 1)
+		let foodSpot = assistant.data.order.foodSpot
+		ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt).toString(), foodSpot))
+	}
+
 	function confirmOrder(assistant) {
 		notify(JSON.stringify(assistant.data.query))
 		notify(JSON.stringify(assistant.data.order))
@@ -320,6 +325,7 @@ app.post('/', function(request, response) {
 	actionMap.set(browseByFoodSpotAction, orderFromFoodSpot)
 	actionMap.set(confirmOrderAction, confirmOrder)
 	actionMap.set(orderReadyAction, placeOrder)
+	actionMap.set(orderUnreadyAction, orderMoreFromFoodSpot)
 	actionMap.set(orderAgainAction, orderAgainYes)
 	actionMap.set(quitJourneyAction, quitJourney)
 
