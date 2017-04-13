@@ -26,7 +26,7 @@ const startJourneyAction = "journey.start",
 	confirmOrderAction = "journey.confirmOrder",
 	orderReadyAction = "journey.order.ready",
 	orderUnreadyAction = "journey.order.unready",
-	orderAgainAction = "journey.restart",
+	// orderAgainAction = "journey.restart",
 	quitJourneyAction = "journey.end",
 
 	// response string prompts
@@ -34,14 +34,14 @@ const startJourneyAction = "journey.start",
 		"Okay well let me know when you want some food. Talk to you later."
 	],
 	greetingPrompt = ["Welcome to Foodrun, your personal waiter for takeaways and deliveries!"],
-	invocationPrompt = ["What would you like to eat?", "What do you feel like eating today?"],
+	invocationPrompt = ["What would you like to eat?", "What would you like to order?", "What do you feel like eating?"],
 	quitPrompts = ["Ok, let me know when you get hungry. Bye!", "Ok, bye", "Ok, see you soon!"],
-	acknowledgePrompt = ["Great!"],
+	acknowledgePrompt = ["Great!", "Awesome.", "Yummy!", "Sure."],
 
 
 	sellsUserFoodPrompts = ["These places sell %s: Shake & Grill, Umami & Roosters Piri Piri."],
 	whichRestaurantPrompt = ["Which one shall we order from?"],
-	foodSpotChosenPrompt = ["Anything else from %s?"],
+	foodSpotChosenPrompt = ["Anything else from %s?", "Would you like anything else?"],
 	confirmOrderPrompts = ["Okay so that's %s from %s, right?", "Okay so that's %s to order from %s?"],
 	orderPlacedPrompt = ["Order placed.", "Awesome! Order placed.", "Order has been placed."],
 	startAgainPrompt = ["Want to order again?", "Another order?", "Shall I order from another restaurant?"]
@@ -61,6 +61,11 @@ const startJourneyAction = "journey.start",
 function getRandomPrompt(assistant, array) {
 	let prompt,
 		lastPrompt = assistant.data.lastPrompt;
+
+	// catch for array's of length 1
+	if (array.length === 1) {
+		return array;
+	}
 
 	for (let i in array) {
 		if (array[i] === lastPrompt) {
@@ -102,13 +107,18 @@ app.post('/', function(request, response) {
 	console.log(chalk.green('headers: ' + JSON.stringify(request.headers)))
 	console.log(chalk.yellow('body: ' + JSON.stringify(request.body)))
 
+	/**
+	 * API AI assistant object.
+	 * @type {Assistant}
+	 */
 	const assistant = new Assistant({
 		request: request,
 		response: response
 	})
 
 	/**
-	 * Custom print function
+	 * Custom printf function which pipes input into
+	 * a sprintf function.
 	 * @param  {String} prompt 	Response prompt to be
 	 *                          returned to the user
 	 * @return {function} 	 	Special format identifier
@@ -139,6 +149,12 @@ app.post('/', function(request, response) {
 		assistant.ask(prompt, noInputPrompts)
 	}
 
+	/**
+	 * Function which sets up empty objects used for 
+	 * manipulation through out user journeys.
+	 * @param  {[type]} assistant [description]
+	 * @return {[type]}           [description]
+	 */
 	function initStorage(assistant) {
 		let order = {
 				items: [],
@@ -160,13 +176,14 @@ app.post('/', function(request, response) {
 	 * @param  {[type]} assistant API AI Assistant
 	 * @return {[type]}           [description]
 	 */
-	function startJourney(assistant, restart) {
+	function startJourney(assistant) {
 		notify('journey start')
-		let aiAssistant = initStorage(assistant)
+		let aiAssistant = initStorage(assistant),
+			restart = aiAssistant.getArgument('restart')
 		notify(JSON.stringify(aiAssistant.data.query))
 
 		if (restart) {
-			return ask(aiAssistant, printf(getRandomPrompt(aiAssistant, invocationPrompt)))
+			ask(aiAssistant, printf(getRandomPrompt(aiAssistant, invocationPrompt)))
 		}
 
 		ask(aiAssistant, printf(greetingPrompt + " " + getRandomPrompt(aiAssistant, invocationPrompt)))
@@ -185,6 +202,28 @@ app.post('/', function(request, response) {
 	}
 
 	/**
+	 * A function that asks the user if they would like to
+	 * add more items to their order.
+	 * @param  {[type]} assistant [description]
+	 * @param  {[type]} foodSpot  [description]
+	 * @return {[type]}           [description]
+	 */
+	function promptUserToOrderMore(assistant, foodSpot) {
+		let prompt = getRandomPrompt(assistant, acknowledgePrompt) + " " + getRandomPrompt(assistant, foodSpotChosenPrompt)
+		
+		notify(assistant.getIntent())
+		// If the action was triggered with the intent
+		// of an unready order.
+		if (assistant.getIntent() === orderUnreadyAction) {
+			prompt = getRandomPrompt(assistant, foodSpotChosenPrompt)
+			console.log(prompt)
+		}
+		notify(prompt)
+		notify(printf(prompt, foodSpot))
+		ask(assistant, printf(prompt, foodSpot))
+	}
+
+	/**
 	 * Function that transfers all queried food items over
 	 * into the order object and erases queried food items.
 	 * Subsequently asks user if they'd like to further
@@ -194,8 +233,8 @@ app.post('/', function(request, response) {
 	 */
 	function addQueryToOrder(assistant, foodSpot) {
 		notify('adding query food to order')
-
 		let queryFood = assistant.data.query.food
+
 		queryFood.forEach(function(choice) {
 			assistant.data.order.items.push(choice)
 		})
@@ -204,7 +243,7 @@ app.post('/', function(request, response) {
 		// over to order
 		assistant.data.query.food = [];
 
-		return ask(assistant, printf(getRandomPrompt(assistant, acknowledgePrompt) + " " + getRandomPrompt(assistant, foodSpotChosenPrompt).toString(), foodSpot))
+		promptUserToOrderMore(assistant, foodSpot)
 	}
 
 	/**
@@ -220,14 +259,23 @@ app.post('/', function(request, response) {
 		let query = assistant.data.query,
 			// order = assistant.data.order,
 			input = assistant.getArgument('query-items'),
-			rawInput = assistant.getRawInput().toLowerCase()
+			rawInput = assistant.getRawInput().toLowerCase(),
 			// foodSpot = assistant.getArgument('food-spot') || order.foodSpot
+			order = assistant.data.order,
+			foodSpot = order.foodSpot
 
 		// notify(JSON.stringify(assistant.data.query))
-		query.food = input
+		if (input) {
+			query.food = input
+		}
 			// notify(JSON.stringify(assistant.data.query))
 
-		// if (foodSpot) {
+		if (foodSpot) {
+			console.log(chalk.red(foodSpot))
+			return promptUserToOrderMore(assistant, foodSpot)
+		}
+
+		notify(chalk.red("no food spot chosen"))
 		// 	notify('foodspot exists - ' + JSON.stringify(order))
 		// 			notify(JSON.stringify(assistant.data.query))
 
@@ -278,7 +326,7 @@ app.post('/', function(request, response) {
 		// notify('query food updated'+JSON.stringify(assistant.data.query))
 
 		// notify('order' +JSON.stringify(order))
-
+		// TODO: remove below warning. Used for dev purposes.
 		if (!foodSpot) {
 			return assistant.tell('food spot has not been chosen!')
 		}
@@ -288,12 +336,24 @@ app.post('/', function(request, response) {
 		// notify('query items added to order:' + JSON.stringify(order))
 	}
 
-	function orderMoreFromFoodSpot(assistant) {
+	/**
+	 * A function to direct users to place another order after
+	 * placing one already.
+	 * @param  {[type]} assistant [description]
+	 * @return {[type]}           [description]
+	 */
+	function browseMoreFoodSpot(assistant) {
 		assistant.setContext("chosen_foodspot-followup", 1)
 		let foodSpot = assistant.data.order.foodSpot
-		ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt).toString(), foodSpot))
+		ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt), foodSpot))
 	}
 
+	/**
+	 * Compiles the user order and explicitly ask for 
+	 * confirmation from user.
+	 * @param  {[type]} assistant [description]
+	 * @return {[type]}           [description]
+	 */
 	function confirmOrder(assistant) {
 		notify(JSON.stringify(assistant.data.query))
 		notify(JSON.stringify(assistant.data.order))
@@ -305,6 +365,12 @@ app.post('/', function(request, response) {
 		ask(assistant, printf(getRandomPrompt(assistant, confirmOrderPrompts), list, foodSpot))
 	}
 
+	/**
+	 * Function that places the order and prompts the user
+	 * if they would like to place another order.
+	 * @param  {[type]} assistant [description]
+	 * @return {[type]}           [description]
+	 */
 	function placeOrder(assistant) {
 		notify(JSON.stringify(assistant.data.query))
 		notify(JSON.stringify(assistant.data.order))
@@ -312,12 +378,13 @@ app.post('/', function(request, response) {
 		ask(assistant, printf(getRandomPrompt(assistant, orderPlacedPrompt) + ' ' + getRandomPrompt(assistant, startAgainPrompt)))
 	}
 
-	function orderAgainYes(assistant) {
-		notify('ordering again')
-		startJourney(assistant, true)
-	}
-
+	/**
+	 * Maps actions to corresponding functions.
+	 * @type {Map}
+	 */
 	let actionMap = new Map()
+
+	// Mappings..
 	actionMap.set(startJourneyAction, startJourney)
 	actionMap.set(earlyQuitJourneyAction, quitJourney)
 	actionMap.set(browseAction, browse)
@@ -325,12 +392,10 @@ app.post('/', function(request, response) {
 	actionMap.set(browseByFoodSpotAction, orderFromFoodSpot)
 	actionMap.set(confirmOrderAction, confirmOrder)
 	actionMap.set(orderReadyAction, placeOrder)
-	actionMap.set(orderUnreadyAction, orderMoreFromFoodSpot)
-	actionMap.set(orderAgainAction, orderAgainYes)
+	actionMap.set(orderUnreadyAction, browseMoreFoodSpot)
 	actionMap.set(quitJourneyAction, quitJourney)
-
+ 
 	assistant.handleRequest(actionMap)
-
 })
 
 
