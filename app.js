@@ -1,11 +1,17 @@
 // Enable actions client library debugging
 process.env.DEBUG = "actions-on-google:*"
 
+/* eslint-disable */
+
 let Assistant = require("actions-on-google").ApiAiAssistant
-let express = require("express")
-let bodyParser = require("body-parser")
-let sprintf = require("sprintf-js").sprintf
-let chalk = require('chalk')
+
+let	express = require("express"),
+	bodyParser = require("body-parser"),
+	sprintf = require("sprintf-js").sprintf,
+	chalk = require('chalk')
+
+/* eslint-enable */
+
 
 let app = express()
 app.set("port", (process.env.PORT || 8080))
@@ -14,19 +20,25 @@ app.use(bodyParser.json({
 }))
 
 function notify(text) {
-	console.log(chalk.blue(text))
+	console.log(chalk.blue('Notifying: ' + text))
+}
+
+
+//TODO: remove all debugs
+function debug(text) {
+	console.log(chalk.magenta(text))
 }
 
 // action values
 const startJourneyAction = "journey.start",
 	earlyQuitJourneyAction = "journey.quit",
-	browseAction = "journey.browse",
+	browseByFoodAction = "journey.browse.byFood",
+	browseByCuisineAction = "journey.browse.byCuisine",
 	chosenUserFoodSpotAction = "journey.order.foodSpot",
 	browseByFoodSpotAction = "journey.browse.onlyFoodSpot",
 	confirmOrderAction = "journey.confirmOrder",
 	orderReadyAction = "journey.order.ready",
 	orderUnreadyAction = "journey.order.unready",
-	// orderAgainAction = "journey.restart",
 	quitJourneyAction = "journey.end",
 
 	// response string prompts
@@ -39,10 +51,12 @@ const startJourneyAction = "journey.start",
 	acknowledgePrompt = ["Great!", "Awesome.", "Yummy!", "Sure."],
 
 
-	sellsUserFoodPrompts = ["These places sell %s: Shake & Grill, Umami & Roosters Piri Piri."],
+	availableFoodSpotsPrompts = ["These places sell %s: Shake & Grill, Umami & Roosters Piri Piri."],
+	availableCuisineFoodSpotsPrompts = ["Sure. These places sell %s cuisine: Ammolite Cafe, China Town."],
 	whichRestaurantPrompt = ["Which one shall we order from?"],
-	foodSpotChosenPrompt = ["Anything else from %s?", "Would you like anything else?"],
-	confirmOrderPrompts = ["Okay so that's %s from %s, right?", "Okay so that's %s to order from %s?"],
+	foodSpotChosenPrompt = ["What would you like from %s?", "What would you like to order from from %s?", "What did you have in mind to order from %s?", "What did you have in mind from %s?"],
+	orderMoreFromFoodSpotPrompt = ["Anything else from %s?", "Would you like anything else from %s?", "Anything else to order from %s?"],
+	confirmOrderPrompts = ["Okay so that's %s from %s, right?", "Okay so that's %s to order from %s?", "Sweet. The order is %s from %s. Shall I place the order?"],
 	orderPlacedPrompt = ["Order placed.", "Awesome! Order placed.", "Order has been placed."],
 	startAgainPrompt = ["Want to order again?", "Another order?", "Shall I order from another restaurant?"]
 
@@ -162,31 +176,12 @@ app.post('/', function(request, response) {
 			},
 			query = {
 				food: [],
-				cuisine: [],
+				cuisine: null,
 				foodSpot: null
 			}
 		assistant.data.order = order
 		assistant.data.query = query
 		return assistant
-	}
-
-	/**
-	 * A function which handles initial greeting and invocation
-	 * sequence with user.
-	 * @param  {[type]} assistant API AI Assistant
-	 * @return {[type]}           [description]
-	 */
-	function startJourney(assistant) {
-		notify('journey start')
-		let aiAssistant = initStorage(assistant),
-			restart = aiAssistant.getArgument('restart')
-		notify(JSON.stringify(aiAssistant.data.query))
-
-		if (restart) {
-			ask(aiAssistant, printf(getRandomPrompt(aiAssistant, invocationPrompt)))
-		}
-
-		ask(aiAssistant, printf(greetingPrompt + " " + getRandomPrompt(aiAssistant, invocationPrompt)))
 	}
 
 	/**
@@ -209,13 +204,14 @@ app.post('/', function(request, response) {
 	 * @return {[type]}           [description]
 	 */
 	function promptUserToOrderMore(assistant, foodSpot) {
-		let prompt = getRandomPrompt(assistant, acknowledgePrompt) + " " + getRandomPrompt(assistant, foodSpotChosenPrompt)
+		let prompt = getRandomPrompt(assistant, acknowledgePrompt) + " " + getRandomPrompt(assistant, orderMoreFromFoodSpotPrompt)
 		
 		notify(assistant.getIntent())
 		// If the action was triggered with the intent
 		// of an unready order.
 		if (assistant.getIntent() === orderUnreadyAction) {
-			prompt = getRandomPrompt(assistant, foodSpotChosenPrompt)
+			debug('!!!!!let me know if we ever reach here....!!!!!')
+			prompt = getRandomPrompt(assistant, orderMoreFromFoodSpotPrompt)
 			console.log(prompt)
 		}
 		notify(prompt)
@@ -232,12 +228,15 @@ app.post('/', function(request, response) {
 	 * @param {[type]} foodSpot  [description]
 	 */
 	function addQueryToOrder(assistant, foodSpot) {
-		notify('adding query food to order')
+		notify('adding query to order')
+
 		let queryFood = assistant.data.query.food
 
-		queryFood.forEach(function(choice) {
-			assistant.data.order.items.push(choice)
-		})
+		if (queryFood.length > 0) {
+			queryFood.forEach(function(choice) {
+				assistant.data.order.items.push(choice)
+			})
+		}
 
 		// empty query once items transferred
 		// over to order
@@ -252,23 +251,21 @@ app.post('/', function(request, response) {
 	 * @param  {[type]} assistant API AI Assistant
 	 * @return {[type]}           [description]
 	 */
-	function browse(assistant) {
+	function browseByFood(assistant) {
 		notify('browsing by food')
 			// notify(JSON.stringify(assistant.data.query))
 
 		let query = assistant.data.query,
 			// order = assistant.data.order,
 			input = assistant.getArgument('query-items'),
-			rawInput = assistant.getRawInput().toLowerCase(),
+			// rawInput = assistant.getRawInput().toLowerCase(),
 			// foodSpot = assistant.getArgument('food-spot') || order.foodSpot
 			order = assistant.data.order,
 			foodSpot = order.foodSpot
 
-		// notify(JSON.stringify(assistant.data.query))
 		if (input) {
 			query.food = input
 		}
-			// notify(JSON.stringify(assistant.data.query))
 
 		if (foodSpot) {
 			console.log(chalk.red(foodSpot))
@@ -276,16 +273,85 @@ app.post('/', function(request, response) {
 		}
 
 		notify(chalk.red("no food spot chosen"))
-		// 	notify('foodspot exists - ' + JSON.stringify(order))
-		// 			notify(JSON.stringify(assistant.data.query))
 
-		// 	addQueryToOrder(assistant, foodSpot)
-		// 	notify('query items added to order:' + JSON.stringify(order))
-		// 	return false
-		// }
+		// ask(assistant, printf(availableFoodSpotsPrompts + " " + whichRestaurantPrompt, rawInput))
+		ask(assistant, printf(availableFoodSpotsPrompts + " " + whichRestaurantPrompt, query.food))
+	}
+
+	function browseByCuisine(assistant) {
+		let query = assistant.data.query,
+			cuisine = assistant.getArgument('cuisine')
+
+		query.cuisine = cuisine
+
+		ask(assistant, printf(availableCuisineFoodSpotsPrompts + " " + whichRestaurantPrompt, cuisine))
+	}
+
+	/**
+	 * A function which handles initial greeting and invocation
+	 * sequence with user.
+	 * @param  {[type]} assistant API AI Assistant
+	 * @return {[type]}           [description]
+	 */
+	function startJourney(assistant) {
+		notify('journey start')
+		let aiAssistant = initStorage(assistant),
+			restart = aiAssistant.getArgument('restart')
+		notify(JSON.stringify(aiAssistant.data.query))
+
+		if (restart) {
+			let query = aiAssistant.getArgument('query-items'),
+				cuisine = aiAssistant.getArgument('cuisine')
+
+			// restart without food or cuisine input
+			if (query.length === 0 && cuisine === null) {
+				ask(aiAssistant, printf(getRandomPrompt(aiAssistant, invocationPrompt)))
+				return
+			}
+
+			// restart with food input
+			if (query.length > 0) {
+				return browseByFood(aiAssistant)
+			}
+			// else restart with cuisine input
+			return browseByCuisine(aiAssistant)
+		}
+
+		// Non-restart sequence
+		ask(aiAssistant, printf(greetingPrompt + " " + getRandomPrompt(aiAssistant, invocationPrompt)))
+	}
+
+	/**
+	 * A function that handles ordering of items from an
+	 * already chosen restaurant (food spot).
+	 * @param  {[type]} assistant [description]
+	 * @return {[type]}           [description]
+	 */
+	function orderFromFoodSpot(assistant, cuisine) {
+		notify('ordering food from food spot')
 		// notify(JSON.stringify(assistant.data.query))
 
-		ask(assistant, printf(sellsUserFoodPrompts + " " + whichRestaurantPrompt, rawInput))
+		let query = assistant.data.query,
+			order = assistant.data.order,
+			input = assistant.getArgument('query-items'),
+			foodSpot = order.foodSpot
+
+		if (input) {
+			query.food = input
+		}
+
+		if (cuisine) {
+			ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt), foodSpot))
+			return
+		}
+
+		// TODO: remove below warning. Used for dev purposes.
+		if (!foodSpot) {
+			assistant.tell('food spot has not been chosen!')
+			return
+		}
+
+		addQueryToOrder(assistant, foodSpot)
 	}
 
 	/**
@@ -299,41 +365,24 @@ app.post('/', function(request, response) {
 		notify('saving chosen restaurant')
 		let order = assistant.data.order,
 			query = assistant.data.query,
-			input = assistant.getArgument('food-spot')
+			input = assistant.getArgument('food-spot'),
+			cuisine = assistant.getArgument('cuisine') || query.cuisine
+
 		notify(JSON.stringify(assistant.data.query))
 
 		order.foodSpot = input
 		query.foodSpot = input
-		addQueryToOrder(assistant, input)
-	}
 
-	/**
-	 * A function that handles ordering of items from an
-	 * already chosen restaurant (food spot).
-	 * @param  {[type]} assistant [description]
-	 * @return {[type]}           [description]
-	 */
-	function orderFromFoodSpot(assistant) {
-		notify('ordering food from food spot')
-		// notify(JSON.stringify(assistant.data.query))
-
-		let query = assistant.data.query,
-			order = assistant.data.order,
-			input = assistant.getArgument('query-items'),
-			foodSpot = order.foodSpot
-
-		query.food = input
-		// notify('query food updated'+JSON.stringify(assistant.data.query))
-
-		// notify('order' +JSON.stringify(order))
-		// TODO: remove below warning. Used for dev purposes.
-		if (!foodSpot) {
-			return assistant.tell('food spot has not been chosen!')
+		if (cuisine) {
+			query.cuisine = cuisine
+			if (query.food.length < 1) {
+				debug('prompting with cuisine')
+				orderFromFoodSpot(assistant, cuisine)
+				return
+			}
 		}
-		// notify('foodspot exists - ' + JSON.stringify(order))
-		// notify(JSON.stringify(assistant.data.query))
-		addQueryToOrder(assistant, foodSpot)
-		// notify('query items added to order:' + JSON.stringify(order))
+
+		addQueryToOrder(assistant, input)
 	}
 
 	/**
@@ -342,7 +391,7 @@ app.post('/', function(request, response) {
 	 * @param  {[type]} assistant [description]
 	 * @return {[type]}           [description]
 	 */
-	function browseMoreFoodSpot(assistant) {
+	function anotherOrder(assistant) {
 		assistant.setContext("chosen_foodspot-followup", 1)
 		let foodSpot = assistant.data.order.foodSpot
 		ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt), foodSpot))
@@ -387,12 +436,13 @@ app.post('/', function(request, response) {
 	// Mappings..
 	actionMap.set(startJourneyAction, startJourney)
 	actionMap.set(earlyQuitJourneyAction, quitJourney)
-	actionMap.set(browseAction, browse)
+	actionMap.set(browseByFoodAction, browseByFood)
+	actionMap.set(browseByCuisineAction, browseByCuisine)
 	actionMap.set(chosenUserFoodSpotAction, chooseFoodSpot)
 	actionMap.set(browseByFoodSpotAction, orderFromFoodSpot)
 	actionMap.set(confirmOrderAction, confirmOrder)
 	actionMap.set(orderReadyAction, placeOrder)
-	actionMap.set(orderUnreadyAction, browseMoreFoodSpot)
+	actionMap.set(orderUnreadyAction, anotherOrder)
 	actionMap.set(quitJourneyAction, quitJourney)
  
 	assistant.handleRequest(actionMap)
