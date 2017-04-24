@@ -1,17 +1,11 @@
 // Enable actions client library debugging
 process.env.DEBUG = "actions-on-google:*"
 
-/* eslint-disable */
-
-let Assistant = require("actions-on-google").ApiAiAssistant
-
-let	express = require("express"),
+let Assistant = require("actions-on-google").ApiAiAssistant,
+	express = require("express"),
 	bodyParser = require("body-parser"),
 	sprintf = require("sprintf-js").sprintf,
 	chalk = require('chalk')
-
-/* eslint-enable */
-
 
 let app = express()
 app.set("port", (process.env.PORT || 8080))
