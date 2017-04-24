@@ -14,13 +14,11 @@ app.use(bodyParser.json({
 }))
 
 function notify(text) {
-	console.log(chalk.blue('Notifying: ' + text))
+	console.log(chalk.bgBlue('Notifying: ' + text))
 }
 
-
-//TODO: remove all debugs
 function debug(text) {
-	console.log(chalk.magenta(text))
+	console.log(chalk.bgMagenta(text))
 }
 
 // action values
@@ -93,7 +91,7 @@ function getRandomPrompt(assistant, array) {
  * @param  {[type]} items [description]
  * @return {[type]}       [description]
  */
-function concatItems(items) {
+function concatFoodItems(items) {
 	let listA = items,
 		len = items.length,
 		listB = ' & ' + listA.splice(len - 1, len),
@@ -180,14 +178,19 @@ app.post('/', function(request, response) {
 
 	/**
 	 * Function that handles the quit sequence and responds
-	 * with a ending prompts.
+	 * with ending prompts.
 	 * @param  {[type]} assistant [description]
 	 * @return {[type]}           [description]
 	 */
 	function quitJourney(assistant) {
 		notify('quitting sequence')
-
 		assistant.tell(getRandomPrompt(assistant, quitPrompts))
+	}
+
+	function makeChangesToOrder(assistant) {
+		assistant.setContext("chosen_foodspot-followup", 1)
+		let foodSpot = assistant.data.order.foodSpot
+		ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt), foodSpot))
 	}
 
 	/**
@@ -247,13 +250,9 @@ app.post('/', function(request, response) {
 	 */
 	function browseByFood(assistant) {
 		notify('browsing by food')
-			// notify(JSON.stringify(assistant.data.query))
 
 		let query = assistant.data.query,
-			// order = assistant.data.order,
 			input = assistant.getArgument('query-items'),
-			// rawInput = assistant.getRawInput().toLowerCase(),
-			// foodSpot = assistant.getArgument('food-spot') || order.foodSpot
 			order = assistant.data.order,
 			foodSpot = order.foodSpot
 
@@ -268,10 +267,15 @@ app.post('/', function(request, response) {
 
 		notify(chalk.red("no food spot chosen"))
 
-		// ask(assistant, printf(availableFoodSpotsPrompts + " " + whichRestaurantPrompt, rawInput))
 		ask(assistant, printf(availableFoodSpotsPrompts + " " + whichRestaurantPrompt, query.food))
 	}
 
+	/**
+	 * A function that browses the database for food spots
+	 * dependant upon user input for cuisine.
+	 * @param  {[type]} assistant API AI Assistant
+	 * @return {[type]}           [description]
+	 */
 	function browseByCuisine(assistant) {
 		let query = assistant.data.query,
 			cuisine = assistant.getArgument('cuisine')
@@ -283,7 +287,8 @@ app.post('/', function(request, response) {
 
 	/**
 	 * A function which handles initial greeting and invocation
-	 * sequence with user.
+	 * sequence with user as well the return sequence if users
+	 * decide to place another order after placing one already.
 	 * @param  {[type]} assistant API AI Assistant
 	 * @return {[type]}           [description]
 	 */
@@ -298,7 +303,7 @@ app.post('/', function(request, response) {
 				cuisine = aiAssistant.getArgument('cuisine')
 
 			// restart without food or cuisine input
-			if (query.length === 0 && cuisine === null) {
+			if (query.length < 1 && cuisine === null) {
 				ask(aiAssistant, printf(getRandomPrompt(aiAssistant, invocationPrompt)))
 				return
 			}
@@ -380,19 +385,19 @@ app.post('/', function(request, response) {
 	}
 
 	/**
-	 * A function to direct users to place another order after
-	 * placing one already.
+	 * A function to direct users to make further changes to
+	 * their order if unsure with their current order confirmation.
 	 * @param  {[type]} assistant [description]
 	 * @return {[type]}           [description]
 	 */
-	function anotherOrder(assistant) {
+	function makeChangesToOrder(assistant) {
 		assistant.setContext("chosen_foodspot-followup", 1)
 		let foodSpot = assistant.data.order.foodSpot
 		ask(assistant, printf(getRandomPrompt(assistant, foodSpotChosenPrompt), foodSpot))
 	}
 
 	/**
-	 * Compiles the user order and explicitly ask for 
+	 * Compiles the user order and explicitly asks for
 	 * confirmation from user.
 	 * @param  {[type]} assistant [description]
 	 * @return {[type]}           [description]
@@ -403,7 +408,7 @@ app.post('/', function(request, response) {
 
 		let items = assistant.data.order.items,
 			foodSpot = assistant.data.order.foodSpot,
-			list = items.length === 1 ? items[0] : concatItems(items)
+			list = items.length === 1 ? items[0] : concatFoodItems(items)
 
 		ask(assistant, printf(getRandomPrompt(assistant, confirmOrderPrompts), list, foodSpot))
 	}
@@ -436,7 +441,7 @@ app.post('/', function(request, response) {
 	actionMap.set(browseByFoodSpotAction, orderFromFoodSpot)
 	actionMap.set(confirmOrderAction, confirmOrder)
 	actionMap.set(orderReadyAction, placeOrder)
-	actionMap.set(orderUnreadyAction, anotherOrder)
+	actionMap.set(orderUnreadyAction, makeChangesToOrder)
 	actionMap.set(quitJourneyAction, quitJourney)
  
 	assistant.handleRequest(actionMap)
