@@ -7,8 +7,8 @@
     "deploy": "gcloud app deploy",
     "validate": "./node_modules/.bin/esvalidate app.js",
     "lint": "./node_modules/.bin/eslint app.js",
-    "start": "nodemon lib/app.js --exec babel-node --presets es2015",
-    "build": "babel lib -d dist --presets es2015",
+    "start": "nodemon lib/app.js --exec babel-node",
+    "build": "babel lib -d dist",
     "serve": "node dist/app.js"
   },
   "dependencies": {
