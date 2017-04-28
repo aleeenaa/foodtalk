@@ -10,7 +10,7 @@
 
 Google Home Web Simulator setup can be found [here](https://developers.google.com/actions/tools/fulfillment-hosting#deploying_to_google_app_engine)
 
-##License
+## License
 © 2015 Aleena Naeem
 
 # Foodtalk
