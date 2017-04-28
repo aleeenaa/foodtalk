@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/barthola/foodtalk/logo.png" alt="Logo" width="30%">
+  <img src="https://github.com/barthola/foodtalk/Logo.png" alt="Logo" width="30%">
 </p>
 
 <p align="center">
