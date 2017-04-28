@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/barthola/foodtalk/logo.png" alt="Logo" width="30%">
+  <img src="https://github.com/barthola/foodtalk/Logo.png" alt="Logo" width="30%">
 </p>
 
 <p align="center">
@@ -54,6 +54,7 @@ npm run serve
 ```
 
 ## Testing
+Make sure the fulfillment logic is being hosted publicly for the test script to be able to query it.
 ```bash
 npm test
 ```
