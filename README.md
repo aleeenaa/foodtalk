@@ -54,6 +54,7 @@ npm run serve
 ```
 
 ## Testing
+Make sure the fulfillment logic is being hosted publicly for the test script to be able to query it.
 ```bash
 npm test
 ```
