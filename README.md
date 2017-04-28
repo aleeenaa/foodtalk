@@ -3,8 +3,6 @@
 </p>
 
 <p align="center">
-  <b>FOODTALK:</b>
-  <br>
   <i>A VUI for ordering foodservice.</i>
 </p>
 
