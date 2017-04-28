@@ -1,10 +1,8 @@
 <p align="center">
-  <img src="https://github.com/barthola/foodtalk/Logo.png" alt="Logo" width="30%">
+  <img src="https://github.com/barthola/foodtalk/blob/master/Logo.png" alt="Logo" width="30%">
 </p>
 
 <p align="center">
-  <b>FOODTALK:</b>
-  <br>
   <i>A VUI for ordering foodservice.</i>
 </p>
 
