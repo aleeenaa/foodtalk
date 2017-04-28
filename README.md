@@ -1,11 +1,11 @@
 # Foodtalk
 Fulfillment logic for a voice-enabled food ordering system on api.ai
 
-Pre-Installation Requirements
+## Pre-Installation Requirements
 - User must be in posession of a reachable public URL
 - User must be in posession of a server of computer
 
-#Installation
+## Installation
 
 1. `git clone https://github.com/barthola/foodtalk`.
 2. Install [NodeJS](https://nodejs.org/en/download/) - (Installation of NPM is accompanied usually).
@@ -20,27 +20,34 @@ Pre-Installation Requirements
 This is usually found at the bottom of the intent's page.
 11. The agent is set up and ready to be used.
 
-#Startup
+## Startup
 
-**development**
+**Development**
 - From the command line, navigate to the root directory of the project and run the command
 
 ```bash
 npm start
 ```
 
-**production (using [pm2](https://github.com/Unitech/pm2))**
+**Production (using [pm2](https://github.com/Unitech/pm2))**
 ```bash
 pm2 start app
 ```
-OR
-without the use of pm2
+
+**Production without the use of pm2**
 ```bash
 npm run serve
 ```
 
-#Testing
+## Testing
 ```bash
 npm test
 ```
 *See `test/index.js` for more info*
+
+## Demo
+
+**[Google Home Web Simulator](https://developers.google.com/actions/tools/web-simulator)**
+```bash
+npm run deploy
+```
