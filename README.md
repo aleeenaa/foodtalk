@@ -1,3 +1,18 @@
+<p align="center">
+  <img src="https://github.com/barthola/foodtalk/logo.png" alt="Logo" width="30%">
+</p>
+
+<p align="center">
+  <b>FOODTALK:</b>
+  <br>
+  <i>A VUI for ordering foodservice.</i>
+</p>
+
+Google Home Web Simulator setup can be found [here](https://developers.google.com/actions/tools/fulfillment-hosting#deploying_to_google_app_engine)
+
+##License
+© 2015 Aleena Naeem
+
 # Foodtalk
 Fulfillment logic for a voice-enabled food ordering system on api.ai
 
@@ -16,8 +31,7 @@ Fulfillment logic for a voice-enabled food ordering system on api.ai
 7. Go to agent settings > Export and Import by clicking on the cog symbol next to the agent name.
 8. Click `Restore from zip` to import the zip file `foodtalk.zip` into the agent.
 9. Click `Fulfilment` on the left hand side menu and enable webhook, fill in the `URL` field in the format `http://{address}:8080`.
-10. User will have visit each intent, accessible through the left hand side menu and enable fulfilment.
-This is usually found at the bottom of the intent's page.
+10. User will have visit each intent, accessible through the left hand side menu and enable fulfilment. This is usually found at the bottom of the intent's page.
 11. The agent is set up and ready to be used.
 
 ## Startup
